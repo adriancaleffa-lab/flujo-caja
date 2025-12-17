@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Inicio — Flujo de Caja</title>
+<style>
+  :root{
+    --bg:#f3faf5; --card:#ffffff; --accent:#2e7d32; --accent-dark:#1b5e20; --muted:#57606a;
+    --radius:12px; --maxw:980px;
+  }
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+<script>
+const APP_ENV={isFile:location.protocol==="file:"};
+if("serviceWorker"in navigator&&!APP_ENV.isFile){
+ navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+  body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:32px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:var(--maxw);background:var(--card);border-radius:var(--radius);padding:28px;box-shadow:0 10px 30px rgba(46,125,50,0.06);text-align:center}
+  img.logo{height:90px;display:block;margin:0 auto 10px}
+  h1{margin:6px 0 8px;font-size:24px;color:var(--accent-dark)}
+  p.lead{color:var(--muted);margin-bottom:20px}
+  .menu{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .menu a{background:var(--accent);color:white;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600;box-shadow:0 6px 18px rgba(34,80,38,0.08)}
+  .menu a:hover{background:var(--accent-dark)}
+  footer{margin-top:18px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+    <h1>📊 Flujo de Caja — Panel</h1>
+    <p class="lead">Administra tus movimientos, importa/expórtalos, y revisa resúmenes semanales y mensuales.</p>
+
+    <div class="menu">
+      <a href="listado.html">📋 Listado completo</a>
+      <a href="resumen.html">📅 Resumen semanal</a>
+      <a href="grafico.html">📈 Gráfico</a>
+      <a href="resumen_mensual.html">🗂 Resumen mensual</a>
+    </div>
+
+    <footer>Los datos se guardan en tu navegador (localStorage).</footer>
+  </div>
+</body>
+</html>

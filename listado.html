@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Listado — Flujo de Caja</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{--bg:#f3faf5;--card:#fff;--accent:#2e7d32;--muted:#53606a;--radius:12px;--maxw:1100px}
+  body{font-family:Inter,Arial,sans-serif;background:var(--bg);margin:0;padding:24px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:var(--maxw);background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 10px 30px rgba(46,125,50,0.05)}
+  .nav{display:flex;align-items:center;gap:12px;justify-content:flex-start;margin-bottom:10px}
+  .nav img{height:64px}
+  .nav a{color:var(--accent);text-decoration:none;font-weight:600;margin-right:12px}
+  h1{margin:6px 0 12px;color:var(--accent)}
+  .controls{display:grid;grid-template-columns:1fr 1fr 1fr 150px 150px;gap:8px;align-items:center}
+  input[type=date], input[type=text], input[type=number]{padding:8px;border-radius:8px;border:1px solid #e6eee6;width:100%}
+  button{background:var(--accent);color:white;border:none;padding:9px 12px;border-radius:8px;cursor:pointer}
+  button.secondary{background:#6b7280}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+  th,td{padding:8px;border-bottom:1px solid #eef6ee;text-align:center}
+  th{background:#f9fffa;color:#2b6e2b;text-align:center}
+  td.num{text-align:right}
+  .actions button{margin-right:6px}
+  .footerRow{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <img src="logo.png" alt="logo" onerror="this.style.display='none'">
+    <a href="index.html">Inicio</a>
+    <a href="resumen.html">Resumen</a>
+    <a href="grafico.html">Gráfico</a>
+    <a href="resumen_mensual.html">Mensual</a>
+  </div>
+
+  <h1>📋 Listado de Movimientos</h1>
+
+  <!-- FORMULARIO -->
+  <div class="controls">
+    <input id="fecha" type="date" />
+    <input id="descripcion" type="text" placeholder="Descripción"/>
+    <input id="detalle" type="text" placeholder="Detalle"/>
+    <input id="creditos" type="number" placeholder="Créditos"/>
+    <input id="debitos" type="number" placeholder="Débitos"/>
+  </div>
+
+  <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="agregarMovimiento()">➕ Agregar</button>
+    <button class="secondary" onclick="limpiarCampos()">Limpiar</button>
+    <div style="flex:1"></div>
+    <input id="file" type="file" accept=".xlsx,.xls" />
+    <button onclick="importar()">📥 Importar Excel</button>
+    <button onclick="exportar()">📤 Exportar Excel</button>
+    <button onclick="limpiarTodo()" style="background:#b71c1c">🧹 Borrar todo</button>
+  </div>
+
+  <!-- TABLA -->
+  <table id="tabla">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Descripción</th>
+        <th>Detalle</th>
+        <th>Créditos</th>
+        <th>Débitos</th>
+        <th>Saldo</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="footerRow">
+    <div id="totales"></div>
+    <div style="font-size:13px;color:var(--muted)">Datos guardados en el navegador</div>
+  </div>
+
+</div>
+
+<script>
+/* ----------------------------------------
+   MOVIMIENTOS
+----------------------------------------- */
+let movimientos = JSON.parse(localStorage.getItem('movimientos')) || [];
+const tbody = document.querySelector('#tabla tbody');
+
+function guardar(){ localStorage.setItem('movimientos', JSON.stringify(movimientos)); }
+
+function formato(valor){
+  return valor.toLocaleString('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2});
+}
+
+function render(){
+  tbody.innerHTML='';
+  let saldoAcum = 0;
+
+  movimientos.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+
+  movimientos.forEach((m,i)=>{
+    const creditos = m.creditos || 0;
+    const debitos  = m.debitos  || 0;
+    saldoAcum += (creditos - debitos);
+
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${m.fecha}</td>
+      <td>${m.descripcion}</td>
+      <td>${m.detalle}</td>
+      <td class="num">${formato(creditos)}</td>
+      <td class="num">${formato(debitos)}</td>
+      <td class="num">${formato(saldoAcum)}</td>
+      <td>
+        <button onclick="editar(${i})">✏️</button>
+        <button onclick="eliminar(${i})">❌</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('totales').textContent =
+    "Saldo final: " + formato(saldoAcum);
+
+  guardar();
+}
+
+function limpiarCampos(){
+  fecha.value=''; descripcion.value=''; detalle.value='';
+  creditos.value=''; debitos.value='';
+}
+
+function agregarMovimiento(){
+  const f = fecha.value;
+  const d = descripcion.value.trim();
+  const det = detalle.value.trim();
+  const c = Number(creditos.value);
+  const e = Number(debitos.value);
+
+  if(!f || !d) return alert("Faltan datos.");
+
+  movimientos.push({
+    fecha:f,
+    descripcion:d,
+    detalle:det,
+    creditos:isNaN(c)?0:c,
+    debitos:isNaN(e)?0:e
+  });
+
+  limpiarCampos();
+  render();
+}
+
+function eliminar(i){
+  if(confirm("¿Eliminar movimiento?")){
+    movimientos.splice(i,1);
+    render();
+  }
+}
+
+function editar(i){
+  const m = movimientos[i];
+  const nd = prompt("Descripción:", m.descripcion);
+  if(nd===null) return;
+  const nt = prompt("Detalle:", m.detalle);
+  const nc = Number(prompt("Créditos:", m.creditos));
+  const ne = Number(prompt("Débitos:", m.debitos));
+  movimientos[i]={...m, descripcion:nd, detalle:nt, creditos:nc, debitos:ne};
+  render();
+}
+
+function limpiarTodo(){
+  if(confirm("¿BORRAR TODO?")){
+    movimientos=[];
+    guardar();
+    render();
+  }
+}
+
+/* ----------------------------------------
+   FECHAS EXCEL ROBUSTAS
+----------------------------------------- */
+
+function excelSerialToDate(serial){
+  const base = new Date(Date.UTC(1899,11,30));
+  return new Date(base.getTime() + serial*86400000);
+}
+
+function parseExcelDate(value){
+  if(value===null || value===undefined || value==="") return null;
+
+  if(value instanceof Date && !isNaN(value)) return value;
+
+  if(typeof value==="number") return excelSerialToDate(value);
+
+  if(typeof value==="string"){
+    const s=value.trim();
+
+    if(/^\d+(\.\d+)?$/.test(s)){
+      const n=Number(s);
+      if(n>0 && n<3000000) return excelSerialToDate(n);
+    }
+
+    const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(m){
+      let d=m[1].padStart(2,"0"), mo=m[2].padStart(2,"0"), y=m[3];
+      if(y.length===2) y="20"+y;
+      return new Date(`${y}-${mo}-${d}T00:00:00`);
+    }
+
+    const dt=new Date(s.includes("T")?s:(s+"T00:00:00"));
+    if(!isNaN(dt)) return dt;
+  }
+
+  return null;
+}
+
+/* ----------------------------------------
+   IMPORTAR EXCEL
+----------------------------------------- */
+function importar(){
+  const file=document.getElementById("file").files[0];
+  if(!file) return alert("Elegí un archivo.");
+
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const data=new Uint8Array(e.target.result);
+    const wb=XLSX.read(data,{type:"array"});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+
+    let count=0;
+
+    rows.forEach(r=>{
+      const norm={};
+      Object.keys(r).forEach(k=>{
+        const nk=k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,"");
+        norm[nk]=r[k];
+      });
+
+      const pick=arr=>{
+        for(const a of arr)
+          for(const k in norm)
+            if(k.includes(a)) return norm[k];
+        return "";
+      };
+
+      const f=pick(["fecha","date"]);
+      const dt=parseExcelDate(f);
+      if(!dt) return;
+
+      const fechaISO=dt.toISOString().slice(0,10);
+
+      const desc = pick(["descripcion","concepto","detalle","description"]) || "(sin descripción)";
+      const det  = pick(["detalle","observacion","nota","detail"]);
+
+      function toNum(x){
+        if(x===null||x===undefined||x==="") return 0;
+        const s=String(x).replace(/[^0-9\-\.,]/g,"").replace(",",".");
+        const n=Number(s);
+        return isNaN(n)?0:n;
+      }
+
+      let cred = toNum(pick(["credito","ingreso","haber","credit"]));
+      let deb  = toNum(pick(["debito","egreso","debe","debit"]));
+
+      if(cred===0 && deb===0){
+        const monto=toNum(pick(["monto","importe","valor","amount"]));
+        if(monto>=0) cred=monto; else deb=Math.abs(monto);
+      }
+
+      movimientos.push({
+        fecha:fechaISO,
+        descripcion:desc,
+        detalle:det,
+        creditos:cred,
+        debitos:deb
+      });
+
+      count++;
+    });
+
+    render();
+    alert("Importadas "+count+" filas.");
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+/* ----------------------------------------
+   EXPORTAR EXCEL
+----------------------------------------- */
+function exportar(){
+  if(!movimientos.length) return alert("No hay datos.");
+
+  const ws=XLSX.utils.json_to_sheet(movimientos);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"movimientos");
+  XLSX.writeFile(wb,"flujo_caja.xlsx");
+}
+
+render();
+</script>
+
+</body>
+</html>

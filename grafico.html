@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gráfico — Flujo de Caja</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root{--bg:#f3faf5;--card:#fff;--accent:#2e7d32;--muted:#57606a}
+  body{
+    font-family:Inter,Arial,sans-serif;
+    background:var(--bg);
+    margin:0;
+    padding:24px;
+    display:flex;
+    justify-content:center;
+  }
+  .wrap{
+    max-width:980px;
+    width:100%;
+    background:var(--card);
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 8px 24px rgba(34,80,38,0.04);
+  }
+  .nav{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:12px
+  }
+  .nav img{height:56px}
+  .nav a{
+    color:var(--accent);
+    text-decoration:none;
+    font-weight:600
+  }
+  #chartBox{
+    background:white;
+    padding:18px;
+    border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.05);
+  }
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <!-- NAV -->
+  <div class="nav">
+    <img src="logoWITS.png" alt="logo" onerror="this.style.display='none'">
+    <a href="index.html">Inicio</a>
+    <a href="listado.html">Listado</a>
+    <a href="resumen.html">Semanal</a>
+    <a href="resumen_mensual.html">Mensual</a>
+  </div>
+
+  <h2>📈 Gráfico del Saldo Acumulado</h2>
+
+  <div id="chartBox">
+    <canvas id="chart"></canvas>
+  </div>
+
+</div>
+
+<script>
+const movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
+
+function formatoMoneda(n){
+  return n.toLocaleString("es-AR",{
+    style:"currency",
+    currency:"ARS"
+  });
+}
+
+function prepararDatos(){
+  if(!movimientos.length) return {labels:[],data:[]};
+
+  // ordenar por fecha
+  movimientos.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+
+  let saldoAcum = 0;
+  const labels = [];
+  const datos = [];
+
+  movimientos.forEach(m=>{
+    const c = Number(m.creditos || 0);
+    const d = Number(m.debitos  || 0);
+    saldoAcum += (c - d);
+
+    labels.push(m.fecha);
+    datos.push(saldoAcum);
+  });
+
+  return { labels, datos };
+}
+
+// construir gráfico
+const { labels, datos } = prepararDatos();
+
+const ctx = document.getElementById("chart").getContext("2d");
+
+new Chart(ctx,{
+  type:"line",
+  data:{
+    labels:labels,
+    datasets:[{
+      label:"Saldo acumulado",
+      data:datos,
+      borderColor:"#2e7d32",
+      backgroundColor:"rgba(46,125,50,0.10)",
+      borderWidth:2,
+      tension:0.2,
+      fill:true,
+      pointRadius:3
+    }]
+  },
+  options:{
+    scales:{
+      x:{
+        title:{display:true,text:"Fecha"},
+        ticks:{maxRotation:45,minRotation:45}
+      },
+      y:{
+        title:{display:true,text:"Saldo (ARS)"},
+        ticks:{
+          callback:(value)=> formatoMoneda(value)
+        }
+      }
+    },
+    plugins:{
+      tooltip:{
+        callbacks:{
+          label:(ctx)=> formatoMoneda(ctx.raw)
+        }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

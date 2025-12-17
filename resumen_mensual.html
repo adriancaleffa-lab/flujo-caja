@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Resumen Mensual</title>
+
+<style>
+  :root{--bg:#f3faf5;--card:#fff;--accent:#2e7d32;--muted:#57606a}
+  body{
+    font-family:Inter,Arial,sans-serif;
+    background:var(--bg);
+    margin:0;
+    padding:24px;
+    display:flex;
+    justify-content:center;
+  }
+  .wrap{
+    max-width:980px;
+    width:100%;
+    background:var(--card);
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 8px 24px rgba(34,80,38,0.04);
+  }
+  .nav{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:12px
+  }
+  .nav img{height:56px}
+  .nav a{
+    color:var(--accent);
+    text-decoration:none;
+    font-weight:600
+  }
+  .controls{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  input, button{
+    padding:8px;
+    border-radius:8px;
+    border:1px solid #e6efe6;
+  }
+  button{
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    border:none;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px
+  }
+  th,td{
+    padding:10px;
+    border-bottom:1px solid #eef6ee;
+    text-align:center
+  }
+  th{
+    background:#f9fffa;
+    color:var(--accent)
+  }
+  td.num{ text-align:right; }
+</style>
+
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- NAV -->
+  <div class="nav">
+    <img src="logo.png" alt="logo" onerror="this.style.display='none'">
+    <a href="index.html">Inicio</a>
+    <a href="listado.html">Listado</a>
+    <a href="resumen.html">Semanal</a>
+    <a href="grafico.html">Gráfico</a>
+  </div>
+
+  <h2>🗂 Resumen Mensual</h2>
+
+  <div class="controls">
+    <input id="filtro" type="text" placeholder="Filtrar por descripción…">
+    <input id="mes" type="month">
+    <button onclick="aplicar()">Aplicar</button>
+    <button onclick="limpiar()">Limpiar</button>
+  </div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Mes</th>
+        <th>Créditos</th>
+        <th>Débitos</th>
+        <th>Saldo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<script>
+// movimientos desde listado.html
+const movimientos = JSON.parse(localStorage.getItem("movimientos")) || [];
+const tbody = document.querySelector("#tbl tbody");
+
+function formato(valor){
+  return valor.toLocaleString("es-AR",{
+    style:"currency",
+    currency:"ARS",
+    minimumFractionDigits:2
+  });
+}
+
+function claveMensual(fecha){
+  const d = new Date(fecha);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+
+function calcular(filtro, mesSel){
+  const mensual = {};
+
+  movimientos.forEach(m => {
+    const desc = (m.descripcion || "").toLowerCase();
+
+    // filtro por texto
+    if(filtro && !desc.includes(filtro)) return;
+
+    const clave = claveMensual(m.fecha);
+
+    // filtro por mes específico
+    if(mesSel && clave !== mesSel) return;
+
+    if(!mensual[clave]) mensual[clave] = {creditos:0, debitos:0};
+
+    mensual[clave].creditos += Number(m.creditos || 0);
+    mensual[clave].debitos  += Number(m.debitos  || 0);
+  });
+
+  return mensual;
+}
+
+function render(data){
+  tbody.innerHTML = "";
+
+  const claves = Object.keys(data).sort();
+  if(claves.length === 0){
+    tbody.innerHTML = `<tr><td colspan="4">Sin resultados</td></tr>`;
+    return;
+  }
+
+  claves.forEach(k => {
+    const v = data[k];
+    const saldo = v.creditos - v.debitos;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${k}</td>
+      <td class="num">${formato(v.creditos)}</td>
+      <td class="num">${formato(v.debitos)}</td>
+      <td class="num" style="color:${saldo>=0?'green':'red'}">${formato(saldo)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function aplicar(){
+  const texto = filtro.value.trim().toLowerCase();
+  const mesSel = mes.value || null;
+  const data = calcular(texto, mesSel);
+  render(data);
+}
+
+function limpiar(){
+  filtro.value = "";
+  mes.value = "";
+  aplicar();
+}
+
+// iniciar mostrando todo
+aplicar();
+</script>
+
+</body>
+</html>
